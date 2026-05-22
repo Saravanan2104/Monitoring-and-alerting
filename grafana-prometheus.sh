@@ -32,8 +32,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets:
-            - 'localhost:9093'
+        - targets: ['localhost:9093']
 
 rule_files:
   - "alert.rules.yml"
@@ -44,12 +43,11 @@ scrape_configs:
 
     ec2_sd_configs:
       - region: ap-south-1
-        port: 9100
+        port: 9093
 
         filters:
           - name: tag:Name
-            values:
-              - node-server
+            values: ["node-server"]
 
     relabel_configs:
       - source_labels: [__meta_ec2_private_ip]
