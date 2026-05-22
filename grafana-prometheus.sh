@@ -166,7 +166,7 @@ receivers:
 
     pagerduty_configs:
 
-      - routing_key: 'PASTE-YOUR-PAGERDUTY-ROUTING-KEY'
+      - routing_key: 'b2a074357cc74609d081ba218a1802ea'
 
         severity: 'critical'
 
