@@ -46,13 +46,13 @@ scrape_configs:
         port: 9093
 
         filters:
-          - name: tag:Name
+          - name: "tag:Name"
             values: ["node-server"]
 
     relabel_configs:
       - source_labels: [__meta_ec2_private_ip]
-        target_label: address
-        replacement: \$1:9100
+        target_label: __address__
+        replacement: "$1:9100"
 
 EOF
 
@@ -70,7 +70,7 @@ groups:
 
       - alert: HighCPUUsage
 
-        expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100) > 80
+        expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100) > 10
 
         for: 1m
 
@@ -79,7 +79,7 @@ groups:
 
         annotations:
           summary: "High CPU Usage Detected"
-          description: "CPU usage is above 80% for more than 1 minute"
+          description: "CPU usage is above 10% for more than 1 minute"
 
       - alert: InstanceDown
 
