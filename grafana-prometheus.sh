@@ -5,12 +5,12 @@ echo "++++++++++++++++++++++++++++++++++++++++++++"
 echo " Installing Monitoring Stack"
 echo "++++++++++++++++++++++++++++++++++++++++++++"
 
-WORKDIR = "/opt/monitoring"
+WORKDIR="/opt/monitoring"
 mkdir -p $WORKDIR
 cd $WORKDIR
 
 # ==================== 1. Update ================================
-sudo apt update -y && sudo apt upgrade -y
+sudo dnf update -y && sudo dnf upgrade -y
 
 #===================== 2. Prometheus ============================
 sudo useradd --no-create-home --shell /bin/false prometheus || true
@@ -48,14 +48,21 @@ WantedBy=multi-user.target
 EOF
 
 #========================== 3. Grafana ====================================
-sudo apt install -y apt-transport-https wget gnupg
-sudo mkdir -p /etc/apt/keyrings
-wget -q -O /etc/apt/keyrings/grafana.asc https://apt.grafana.com/gpg-full.key
+sudo dnf install -y gnupg
+sudo tee /etc/yum.repos.d/grafana.repo <<EOF
+[grafana]
+name=Grafana OSS
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
 
-echo "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
-
-sudo apt update -y
-sudo apt install -y grafana
+sudo dnf update -y
+sudo dnf install -y grafana
 sudo systemctl enable --now grafana-server
 
 #========================= 4. AlertManager ==================================
