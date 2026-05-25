@@ -5,7 +5,7 @@ echo "++++++++++++++++++++++++++++++++++++++++++++"
 echo " Installing Monitoring Stack"
 echo "++++++++++++++++++++++++++++++++++++++++++++"
 
-WORKDIR = /opt/monitoring
+WORKDIR = "/opt/monitoring"
 mkdir -p $WORKDIR
 cd $WORKDIR
 
