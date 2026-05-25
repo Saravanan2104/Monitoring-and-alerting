@@ -1,235 +1,219 @@
-#!/bin/bash
+#! /bin/bash
+set -e
 
-# ============================================
-# UPDATE SYSTEM
-# ============================================
+echo "++++++++++++++++++++++++++++++++++++++++++++"
+echo " Installing Monitoring Stack"
+echo "++++++++++++++++++++++++++++++++++++++++++++"
 
-sudo dnf update -y
-sudo dnf install wget tar -y
+WORKDIR = /opt/monitoring
+mkdir -p $WORKDIR
+cd $WORKDIR
 
-# ============================================
-# DOWNLOAD PROMETHEUS
-# ============================================
+# ==================== 1. Update ================================
+sudo apt update -y && sudo apt upgrade -y
 
-cd /opt
+#===================== 2. Prometheus ============================
+sudo useradd --no-create-home --shell /bin/false prometheus || true
+sudo mkdir -p /etc/prometheus /var/lib/prometheus
+sudo chown prometheus:prometheus /etc/prometheus /var/lib/prometheus
 
-wget https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz
+curl -LO <prometheus link>
+tar -xvf <tar.gz>
+cd file_name
 
-tar -xvf prometheus-3.5.0.linux-amd64.tar.gz
+sudo cp prometheus promtool /usr/local/bin/
+sudo chown prometheus:prometheus /usr/local/bin/prometheus /usr/local/bin/promtool
 
-mv prometheus-3.5.0.linux-amd64 prometheus
+sudo cp -r consoles console_libraries /etc/prometheus
+sudo chown -R prometheus:prometheus /etc/prometheus
 
-# ============================================
-# PROMETHEUS CONFIGURATION
-# ============================================
+#prometheus service
+sudo tee /etc/systemd/system/prometheus.service >/dev/null <<'EOF'
+[Unit]
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
 
-sudo tee /opt/prometheus/prometheus.yml > /dev/null <<EOF
+[Service]
+User=prometheus
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus.prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus \
+  --web.enable-lifecycle
+Restart=always
 
+[Install]
+WantedBy=multi-user.target
+EOF
+
+#========================== 3. Grafana ====================================
+sudo apt install -y apt-transport-https wget gnupg
+sudo mkdir -p /etc/apt/keyrings
+wget -q -O /etc/apt/keyrings/grafana.asc https://apt.grafana.com/gpg-full.key
+
+echo "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+
+sudo apt update -y
+sudo apt install -y grafana
+sudo systemctl enable --now grafana-server
+
+#========================= 4. AlertManager ==================================
+cd $WORKDIR
+curl -LO <alert manager.tar.gz>
+tar -xvf filename.tar.gz
+cd filename
+
+sudo cp alertmanager amtool /usr/local/bin/
+sudo mkdir -p /etc/alertmanager /var/lib/alertmanager
+sudo chown -R prometheus:prometheus /etc/alertmanager /var/lib/alertmanager
+
+#Alertmanager congif
+sudo tee /etc/alertmanager/alertmanager.yml >/dev/null << 'EOF'
+route:
+  receiver: pagerduty
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+
+receivers:
+  - name: pagerduty
+  pagerduty_configs:
+    - routing_key : <add key>
+      severity: "critical"
+  
+EOF
+
+
+#Alertmanager service
+sudo tee /etc/systemd/system/alertmanager.service >/dev/null << 'EOF'
+[Unit]
+Description=Alertmanager
+After=network.target
+
+[Service]
+User=prometheus
+ExecStart=/usr/local/bin/alertmanager \
+  --config.file=/etc/alertmanager/alertmanager.yml \
+  --storage.path=/var/lib/alermanager
+  Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+#================== 5.Node Exporter ==========================
+cd $WORKDIR
+sudo useradd --no-create-home --shell /bin/false node_exporter || true
+
+curl -LO <node_exporter.tar.gz>
+tar -xvf <node_exporter>
+cd node_exporter
+
+sudo cp node_exporter /usr/local/bin/
+sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
+
+sudo tee /etc/systemd/system/node_exporter.service >/dev/null << 'EOF'
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+user=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# ===================== 6. Alert Rules (fixed)  ========================
+sudo tee /etc/prometheus/alert.rules.yml >/dev/null << 'EOF'
+groups:
+  - name: system-alerts
+  rules:
+    - alert: InstanceDown
+    expr: up == 0
+    for: 1m
+    labels:
+      severity: critical
+
+    - alert: HighCPUUsage
+    expr: >
+      100 - (
+        sum by(instance) (rate(node_cpu_seconds_total{mode='idle}[1m]))
+        /
+        sum by(instance) (rate(node_cpu_seconds_total[1m]))
+        ) * 100 > 10
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High cup usage on {{ $labels.instance}}"
+      description: "CPU usage is above 10% for more than 2 minutes"
+
+    - alert: HighDiskUsage
+      expr: >
+      (1 - (
+      node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+      /
+      node filesystem size bytes{fstype!~"tmpfs|overlay"}
+      )) * 100 > 50
+      for: 2m
+      labels:
+        severity: warning
+EOF
+
+# ================== 7. Prometheus config ==============
+sudo tee /etc/prometheus/prometheus.yml >/dev/null <<'EOF'
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
 
 alerting:
-  alertmanagers:
+  alermanagers:
     - static_configs:
-        - targets: ['localhost:9093']
+        - targets: ["localhost:9093"]
 
 rule_files:
   - "alert.rules.yml"
 
 scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
 
-  - job_name: 'node_exporter'
-
+  - job_name: "ec2-node-exporters"
     ec2_sd_configs:
-      - region: ap-south-1
-        port: 9093
-
+      - region: us-east-1
+        port: 9100
         filters:
-          - name: "tag:Name"
-            values: ["node-server"]
+          - name: tag:Name"
+            values: ["node_server"]
 
     relabel_configs:
       - source_labels: [__meta_ec2_private_ip]
         target_label: __address__
         replacement: "$1:9100"
 
-EOF
-
-# ============================================
-# ALERT RULES
-# ============================================
-
-sudo tee /opt/prometheus/alert.rules.yml > /dev/null <<EOF
-
-groups:
-
-  - name: production-alerts
-
-    rules:
-
-      - alert: HighCPUUsage
-
-        expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100) > 10
-
-        for: 1m
-
-        labels:
-          severity: critical
-
-        annotations:
-          summary: "High CPU Usage Detected"
-          description: "CPU usage is above 10% for more than 1 minute"
-
-      - alert: InstanceDown
-
-        expr: up == 0
-
-        for: 1m
-
-        labels:
-          severity: critical
-
-        annotations:
-          summary: "Instance Down"
-          description: "Prometheus target instance is DOWN"
-
-      - alert: HighMemoryUsage
-
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
-
-        for: 1m
-
-        labels:
-          severity: critical
-
-        annotations:
-          summary: "High Memory Usage"
-          description: "Memory usage is above 80%"
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
 
 EOF
 
-# ============================================
-# PROMETHEUS SERVICE
-# ============================================
-
-sudo tee /etc/systemd/system/prometheus.service > /dev/null <<EOF
-
-[Unit]
-Description=Prometheus
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/opt/prometheus/prometheus \
---config.file=/opt/prometheus/prometheus.yml
-
-[Install]
-WantedBy=multi-user.target
-
-EOF
-
+# ===================== 8. start service  ====================
+sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 
-sudo systemctl start prometheus
-
-sudo systemctl enable prometheus
-
-# ============================================
-# DOWNLOAD ALERTMANAGER
-# ============================================
-
-cd /opt
-
-wget https://github.com/prometheus/alertmanager/releases/download/v0.28.1/alertmanager-0.28.1.linux-amd64.tar.gz
-
-tar -xvf alertmanager-0.28.1.linux-amd64.tar.gz
-
-mv alertmanager-0.28.1.linux-amd64 alertmanager
-
-# ============================================
-# ALERTMANAGER CONFIGURATION
-# ============================================
-
-sudo tee /opt/alertmanager/alertmanager.yml > /dev/null <<EOF
-
-route:
-  receiver: 'pagerduty'
-
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
-
-receivers:
-
-  - name: 'pagerduty'
-
-    pagerduty_configs:
-
-      - routing_key: 'b2a074357cc74609d081ba218a1802ea'
-
-        severity: 'critical'
-
-EOF
-
-# ============================================
-# ALERTMANAGER SERVICE
-# ============================================
-
-sudo tee /etc/systemd/system/alertmanager.service > /dev/null <<EOF
-
-[Unit]
-Description=Alertmanager
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/opt/alertmanager/alertmanager \
---config.file=/opt/alertmanager/alertmanager.yml
-
-[Install]
-WantedBy=multi-user.target
-
-EOF
-
-sudo systemctl daemon-reload
-
-sudo systemctl start alertmanager
-
-sudo systemctl enable alertmanager
-
-# ============================================
-# INSTALL GRAFANA
-# ============================================
-
-sudo dnf install -y https://dl.grafana.com/enterprise/release/grafana-enterprise-12.1.0-1.x86_64.rpm
-
-sudo systemctl start grafana-server
-
-sudo systemctl enable grafana-server
-
-# ============================================
-# RESTART SERVICES
-# ============================================
+sudo systemctl enable prometheus --now
+sudo systemctl enable alertmanager --now
+sudo systemctl enable node_exporter --now
 
 sudo systemctl restart prometheus
 
-sudo systemctl restart alertmanager
-
-sudo systemctl restart grafana-server
-
-# ============================================
-# STATUS CHECK
-# ============================================
-
-sudo systemctl status prometheus
-
-sudo systemctl status alertmanager
-
-sudo systemctl status grafana-server
-
-echo "========================================="
-echo "PROMETHEUS   : http://SERVER-IP:9090"
-echo "ALERTMANAGER : http://SERVER-IP:9093"
-echo "GRAFANA      : http://SERVER-IP:3000"
-echo "========================================="
+echo "================================================"
+echo " Installation completed "
+echo "================================================"
+echo "Prometheus : http://<server-ip>:9090"
+echo "Grafana : http://<server-ip>:3000"
+echo "Alertmanager : http://<server-ip>:9093"
+echo "================================================"
