@@ -9,9 +9,9 @@ echo "++++++++++++++++++++++++++++++++++++++++++++"
 echo "[*] Downloading Alertmanager..."
 cd /tmp
 
-curl "<link>"
-tar -xvf "alertmanager.tar.gz"
-cd 'alermanager'
+curl -L -O https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
+tar xvfz alertmanager-0.27.0.linux-amd64.tar.gz
+cd alertmanager-0.27.0.linux-amd64
 
 echo "[*] Installing alertmanager binaries....."
 sudo cp alertmanager amtool /usr/local/bin/
@@ -47,9 +47,9 @@ sudo useradd --no-create-home --shell /bin/false node_exporter || true
 
 echo "[*] Downloading node exporter..."
 cd /tmp
-curl -LO <node exporter.tar.gz>
-tar -xvf node.tar.gz
-cd node
+curl -L -O https://github.com/prometheus/node_exporter/releases/download/v1.11.1/node_exporter-1.11.1.linux-amd64.tar.gz
+tar -xvf node_exporter-1.11.1.linux-amd64.tar.gz
+cd node_exporter-1.11.1.linux-amd64
 
 echo "[*] Installing node exporter bnary"
 sudo cp node_exporter /usr/local/bin
