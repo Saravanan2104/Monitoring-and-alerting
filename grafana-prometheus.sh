@@ -17,9 +17,10 @@ sudo useradd --no-create-home --shell /bin/false prometheus || true
 sudo mkdir -p /etc/prometheus /var/lib/prometheus
 sudo chown prometheus:prometheus /etc/prometheus /var/lib/prometheus
 
-curl -LO <prometheus link>
-tar -xvf <tar.gz>
-cd file_name
+
+curl -LO https://github.com/prometheus/prometheus/releases/download/v2.55.1/prometheus-2.55.1.linux-amd64.tar.gz
+tar xvf prometheus-2.55.1.linux-amd64.tar.gz
+cd prometheus-2.55.1.linux-amd64
 
 sudo cp prometheus promtool /usr/local/bin/
 sudo chown prometheus:prometheus /usr/local/bin/prometheus /usr/local/bin/promtool
@@ -59,9 +60,9 @@ sudo systemctl enable --now grafana-server
 
 #========================= 4. AlertManager ==================================
 cd $WORKDIR
-curl -LO <alert manager.tar.gz>
-tar -xvf filename.tar.gz
-cd filename
+curl -L -O https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
+tar xvfz alertmanager-0.27.0.linux-amd64.tar.gz
+cd alertmanager-0.27.0.linux-amd64
 
 sudo cp alertmanager amtool /usr/local/bin/
 sudo mkdir -p /etc/alertmanager /var/lib/alertmanager
@@ -105,9 +106,9 @@ EOF
 cd $WORKDIR
 sudo useradd --no-create-home --shell /bin/false node_exporter || true
 
-curl -LO <node_exporter.tar.gz>
-tar -xvf <node_exporter>
-cd node_exporter
+curl -L -O https://github.com/prometheus/node_exporter/releases/download/v1.11.1/node_exporter-1.11.1.linux-amd64.tar.gz
+tar -xvf node_exporter-1.11.1.linux-amd64.tar.gz
+cd node_exporter-1.11.1.linux-amd64
 
 sudo cp node_exporter /usr/local/bin/
 sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
