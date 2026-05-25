@@ -17,7 +17,7 @@ echo "[*] Installing alertmanager binaries....."
 sudo cp alertmanager amtool /usr/local/bin/
 sudo mkdir -p /etc/alertmanager /var/lib/alertmanager
 sudo cp alertmanager.yml /etc/alertmanager/
-sudo chown -R nobody:nogroup /etc/alertmanager /var/lib/alertmanager
+sudo chown -R nobody:nobody /etc/alertmanager /var/lib/alertmanager
 
 echo "[*] Creating systemd service for alertmanager..."
 sudo tee /etc/systemd/system/alertmanager.service >/dev/null <<'EOF'
