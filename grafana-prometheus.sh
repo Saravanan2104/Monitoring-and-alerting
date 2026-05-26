@@ -38,7 +38,7 @@ After=network-online.target
 [Service]
 User=prometheus
 ExecStart=/usr/local/bin/prometheus \
-  --config.file=/etc/prometheus.prometheus.yml \
+  --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/var/lib/prometheus \
   --web.enable-lifecycle
 Restart=always
@@ -68,7 +68,7 @@ sudo systemctl enable --now grafana-server
 #========================= 4. AlertManager ==================================
 cd $WORKDIR
 curl -L -O https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz
-tar xvfz alertmanager-0.27.0.linux-amd64.tar.gz
+tar -xvf alertmanager-0.27.0.linux-amd64.tar.gz
 cd alertmanager-0.27.0.linux-amd64
 
 sudo cp alertmanager amtool /usr/local/bin/
@@ -102,8 +102,8 @@ After=network.target
 User=prometheus
 ExecStart=/usr/local/bin/alertmanager \
   --config.file=/etc/alertmanager/alertmanager.yml \
-  --storage.path=/var/lib/alermanager
-  Restart=always
+  --storage.path=/var/lib/alertmanager
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
@@ -178,7 +178,7 @@ global:
   scrape_interval: 15s
 
 alerting:
-  alermanagers:
+  alertmanagers:
     - static_configs:
         - targets: ["localhost:9093"]
 
@@ -192,10 +192,10 @@ scrape_configs:
 
   - job_name: "ec2-node-exporters"
     ec2_sd_configs:
-      - region: us-east-1
+      - region: us-south-1
         port: 9100
         filters:
-          - name: tag:Name"
+          - name: "tag:Name"
             values: ["node_server"]
 
     relabel_configs:
