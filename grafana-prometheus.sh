@@ -145,7 +145,7 @@ groups:
         expr: up == 0
         for: 1m
         labels:
-        severity: critical
+          severity: critical
 
       - alert: HighCPUUsage
         expr: >
@@ -163,11 +163,11 @@ groups:
 
       - alert: HighDiskUsage
         expr: >
-        (1 - (
-        node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
-        /
-        node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
-        )) * 100 > 50
+          (1 - (
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+          /
+          node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+          )) * 100 > 50
         for: 2m
         labels:
           severity: warning
@@ -193,7 +193,7 @@ scrape_configs:
 
   - job_name: "ec2-node-exporters"
     ec2_sd_configs:
-      - region: us-south-1
+      - region: ap-south-1
         port: 9100
         filters:
           - name: "tag:Name"
