@@ -85,9 +85,9 @@ route:
 
 receivers:
   - name: pagerduty
-  pagerduty_configs:
-    - routing_key : "69b8680115d54303d02b02d06d4b3110"
-      severity: "critical"
+    pagerduty_configs:
+      - routing_key : "69b8680115d54303d02b02d06d4b3110"
+        severity: "critical"
   
 EOF
 
@@ -103,6 +103,7 @@ User=prometheus
 ExecStart=/usr/local/bin/alertmanager \
   --config.file=/etc/alertmanager/alertmanager.yml \
   --storage.path=/var/lib/alertmanager
+
 Restart=always
 
 [Install]
@@ -127,7 +128,7 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-user=node_exporter
+User=node_exporter
 ExecStart=/usr/local/bin/node_exporter
 Restart=always
 
@@ -139,37 +140,37 @@ EOF
 sudo tee /etc/prometheus/alert.rules.yml >/dev/null << 'EOF'
 groups:
   - name: system-alerts
-  rules:
-    - alert: InstanceDown
-    expr: up == 0
-    for: 1m
-    labels:
-      severity: critical
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+        severity: critical
 
-    - alert: HighCPUUsage
-    expr: >
-      100 - (
-        sum by(instance) (rate(node_cpu_seconds_total{mode='idle}[1m]))
+      - alert: HighCPUUsage
+        expr: >
+          100 - (
+            sum by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m]))
+            /
+            sum by(instance) (rate(node_cpu_seconds_total[1m]))
+            ) * 100 > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High cup usage on {{ $labels.instance}}"
+          description: "CPU usage is above 10% for more than 2 minutes"
+
+      - alert: HighDiskUsage
+        expr: >
+        (1 - (
+        node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
         /
-        sum by(instance) (rate(node_cpu_seconds_total[1m]))
-        ) * 100 > 10
-    for: 2m
-    labels:
-      severity: warning
-    annotations:
-      summary: "High cup usage on {{ $labels.instance}}"
-      description: "CPU usage is above 10% for more than 2 minutes"
-
-    - alert: HighDiskUsage
-      expr: >
-      (1 - (
-      node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
-      /
-      node filesystem size bytes{fstype!~"tmpfs|overlay"}
-      )) * 100 > 50
-      for: 2m
-      labels:
-        severity: warning
+        node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+        )) * 100 > 50
+        for: 2m
+        labels:
+          severity: warning
 EOF
 
 # ================== 7. Prometheus config ==============
